@@ -111,7 +111,7 @@ import Control.Monad.Trans ( MonadIO )
 import Control.Monad.Reader (ask)
 
 import Data.ByteString ( ByteString )
-import Data.Char       ( isAlphaNum, isDigit, isSpace )
+import Data.Char       ( isAlphaNum, isDigit, isSpace, isPrint )
 #if defined(mingw32_HOST_OS)
 import Data.Char       ( toLower )
 #endif
@@ -1062,11 +1062,15 @@ instance Exception RunFailed
 
 show_command :: FilePath -> [Text] -> Text
 show_command exe args =
-    T.intercalate " " $ map quote (toTextIgnore exe : args)
-  where
-    quote t | T.any (== '\'') t = t
-    quote t | T.any isSpace t = surround '\'' t
-    quote t | otherwise = t
+  let specialsInQuotes = Set.fromList $ ['\\', '"', '`', '$']
+      escape char | char `Set.member` specialsInQuotes = T.pack ['\\', char]
+      escape char = T.singleton char
+      quote arg = surround '"' $ T.concatMap escape arg
+      specials = Set.fromList "\\'\"`$&|;(){}<>"
+      isSafe c = all ($ c) [isPrint, not . isSpace, (`Set.notMember` specials)]
+      showArg arg | T.all isSafe arg = arg
+      showArg arg = quote arg
+  in T.intercalate " " $ map showArg (toTextIgnore exe : args)
 
 -- quote one argument
 quoteOne :: Text -> Text
