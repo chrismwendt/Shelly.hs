@@ -29,7 +29,7 @@ module Shelly
        (
          -- * Entering Sh
          Sh, ShIO, shelly, shellyNoDir, shellyFailDir, asyncSh, sub
-         , silently, verbosely, escaping, print_stdout, print_stderr, print_commands
+         , silently, verbosely, escaping, print_stdout, print_stderr, print_commands, print_commands_with
          , onCommandHandles
          , tracing, errExit
          , log_stdout_with, log_stderr_with
@@ -881,6 +881,11 @@ print_stderr shouldPrint a =
 print_commands :: Bool -> Sh a -> Sh a
 print_commands shouldPrint a = sub $ modify (\st -> st { sPrintCommands = shouldPrint }) >> a
 
+
+-- | Create a sub-Sh in which commands are sent to the user-defined function.
+print_commands_with :: (Text -> IO ()) -> Sh a -> Sh a
+print_commands_with fn a = sub $ modify (\st -> st { sPrintCommandsFn = fn }) >> a
+
 -- | Enter a sub-Sh that inherits the environment
 -- The original state will be restored when the sub-Sh completes.
 -- Exceptions are propagated normally.
@@ -984,6 +989,7 @@ shelly' ros action = do
                    , sPrintStdout = True
                    , sPrintStderr = True
                    , sPrintCommands = False
+                   , sPrintCommandsFn = TIO.hPutStrLn stdout
                    , sInitCommandHandles = initAllHandles (const $ return ())
                    , sCommandEscaping = True
                    , sEnvironment = environment
@@ -1284,7 +1290,7 @@ runHandles exe args reusedHandles withHandles = do
     state <- get
 
     let cmdString = show_command exe args
-    when (sPrintCommands state) $ echo cmdString
+    when (sPrintCommands state) $ liftIO $ sPrintCommandsFn state cmdString
     trace cmdString
 
     let doRun = if sCommandEscaping state then runCommand else runCommandNoEscape

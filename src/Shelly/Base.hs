@@ -105,6 +105,7 @@ data State = State
    , sPutStderr :: Text -> IO ()   -- ^ by default, hPutStrLn stderr
    , sPrintStderr :: Bool   -- ^ print stderr of command that is executed
    , sPrintCommands :: Bool -- ^ print command that is executed
+   , sPrintCommandsFn :: Text -> IO () -- ^ how to print commands, default is hputStrLn stdout
    , sInitCommandHandles :: StdInit -- ^ initializers for the standard process handles
                                     -- when running a command
    , sCommandEscaping :: Bool -- ^ when running a command, escape shell characters such as '*' rather
